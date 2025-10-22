@@ -52,9 +52,14 @@ public struct AdOptions: Sendable {
     public init(type: String = "timed") { self.type = type }
 }
 
+public enum AdError: Error, Sendable {
+    case invalidURL
+    case presentationFailed
+}
+
 public enum OpenAdResult: Sendable {
     case success(String)
-    case error(String)
+    case failure(AdError)
 }
 
 public enum AdStatus: String, Codable, Sendable {
@@ -111,7 +116,7 @@ public class GamingNamespace: @unchecked Sendable {
         completion: @escaping (OpenAdResult) -> Void
     ) {
         guard let url = URL(string: adLink), !adLink.isEmpty else {
-            completion(.error("Invalid ad link"))
+            completion(.failure(.invalidURL))
             return
         }
 
@@ -127,7 +132,7 @@ public class GamingNamespace: @unchecked Sendable {
             webAd.completion = completion
             webAd.show(in: vc)
         } else {
-            completion(.error("Failed to create ad"))
+            completion(.failure(.presentationFailed))
         }
     }
     #else
@@ -136,7 +141,7 @@ public class GamingNamespace: @unchecked Sendable {
         return nil
     }
     public func openAd(_ adLink: String, options: AdOptions? = nil, in _: Any?, completion: @escaping (OpenAdResult) -> Void) {
-        completion(.error("openAd is only available on iOS."))
+        completion(.failure(.presentationFailed))
     }
     #endif
 
@@ -198,7 +203,7 @@ private class SafariAd: NSObject, PreloadedAd, SFSafariViewControllerDelegate {
 
     func show(in viewController: UIViewController) {
         guard let adURL = URL(string: url) else {
-            completion?(.error("Invalid ad URL"))
+            completion?(.failure(.invalidURL))
             return
         }
 
@@ -212,7 +217,7 @@ private class SafariAd: NSObject, PreloadedAd, SFSafariViewControllerDelegate {
 
     func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
         BoltSDK.shared.gaming.markAdClosed(adOfferId)
-        completion?(.error("User closed ad"))
+        completion?(.failure(.presentationFailed))
     }
 }
 
@@ -258,7 +263,7 @@ private class WebviewAd: NSObject, PreloadedAd, WKNavigationDelegate, WKScriptMe
         if let adURL = URL(string: url) {
             webView.load(URLRequest(url: adURL))
         } else {
-            completion?(.error("Invalid ad URL"))
+            completion?(.failure(.invalidURL))
         }
     }
 
@@ -266,7 +271,7 @@ private class WebviewAd: NSObject, PreloadedAd, WKNavigationDelegate, WKScriptMe
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "boltAdHandler")
         webView?.stopLoading()
         presentedViewController?.dismiss(animated: true) {
-            self.completion?(.error("User closed ad"))
+            self.completion?(.failure(.presentationFailed))
         }
     }
 
@@ -275,7 +280,7 @@ private class WebviewAd: NSObject, PreloadedAd, WKNavigationDelegate, WKScriptMe
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        completion?(.error("Ad failed: \(error.localizedDescription)"))
+        completion?(.failure(.presentationFailed))
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

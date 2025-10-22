@@ -155,20 +155,28 @@ struct CoreFunctionalityTests {
     
     @Test func testOpenAdResult() {
         let successResult = OpenAdResult.success("https://test.com")
-        let errorResult = OpenAdResult.error("Invalid URL")
+        let invalidURLResult = OpenAdResult.failure(.invalidURL)
+        let presentationFailedResult = OpenAdResult.failure(.presentationFailed)
         
         switch successResult {
         case .success(let url):
             #expect(url == "https://test.com")
-        case .error:
+        case .failure:
             #expect(Bool(false), "Should be success case")
         }
         
-        switch errorResult {
+        switch invalidURLResult {
         case .success:
-            #expect(Bool(false), "Should be error case")
-        case .error(let message):
-            #expect(message == "Invalid URL")
+            #expect(Bool(false), "Should be failure case")
+        case .failure(let error):
+            #expect(error == .invalidURL)
+        }
+        
+        switch presentationFailedResult {
+        case .success:
+            #expect(Bool(false), "Should be failure case")
+        case .failure(let error):
+            #expect(error == .presentationFailed)
         }
     }
     
@@ -306,6 +314,37 @@ struct CoreFunctionalityTests {
         // These should compile without warnings about Sendable
         #expect(metadata.adOfferId == "test")
         #expect(status == .opened)
+    }
+    
+    // MARK: - AdError Tests
+    
+    @Test func testAdErrorCases() {
+        let invalidURLError = AdError.invalidURL
+        let presentationFailedError = AdError.presentationFailed
+        
+        #expect(invalidURLError == .invalidURL)
+        #expect(presentationFailedError == .presentationFailed)
+    }
+    
+    @Test func testAdErrorEquality() {
+        let error1 = AdError.invalidURL
+        let error2 = AdError.invalidURL
+        let error3 = AdError.presentationFailed
+        
+        #expect(error1 == error2)
+        #expect(error1 != error3)
+    }
+    
+    @Test func testAdErrorDescription() {
+        let invalidURLError = AdError.invalidURL
+        let presentationFailedError = AdError.presentationFailed
+        
+        // Test that errors can be described
+        let invalidDescription = String(describing: invalidURLError)
+        let presentationDescription = String(describing: presentationFailedError)
+        
+        #expect(!invalidDescription.isEmpty)
+        #expect(!presentationDescription.isEmpty)
     }
     
     // MARK: - Error Handling Tests
