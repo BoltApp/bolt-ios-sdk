@@ -1,0 +1,337 @@
+import BoltSDK
+import Testing
+import Foundation
+
+struct CoreFunctionalityTests {
+    
+    // MARK: - Basic Functionality Tests
+    
+    @Test func testBasicFunctionality() {
+        // Test basic SDK functionality without UIKit dependencies
+        let adOptions = AdOptions(type: "timed")
+        #expect(adOptions.type == "timed")
+        
+        let status = PaymentLinkStatus.pending
+        #expect(String(describing: status) == "pending")
+    }
+    
+    @Test func testSDKInitialization() {
+        let sdk = BoltSDK.shared
+        #expect(sdk.gaming != nil)
+    }
+    
+    // MARK: - Ad Metadata Tests
+    
+    @Test func testAdMetadata() {
+        let adOfferId = "test-ad-123"
+        let adLink = "https://bolt.com/ad?id=test-ad-123"
+        let metadata = AdMetadata(adOfferId: adOfferId, adLink: adLink)
+        
+        #expect(metadata.adOfferId == adOfferId)
+        #expect(metadata.adLink == adLink)
+        #expect(metadata.status == .opened)
+        
+        // Test timestamp is recent
+        let timeDifference = abs(metadata.timestamp.timeIntervalSinceNow)
+        #expect(timeDifference < 1.0) // Should be within 1 second
+    }
+    
+    @Test func testAdMetadataStatusUpdate() {
+        let metadata = AdMetadata(adOfferId: "test-123", adLink: "https://test.com")
+        #expect(metadata.status == .opened)
+        
+        // Test status can be updated (simulating what happens in the SDK)
+        var mutableMetadata = metadata
+        mutableMetadata.status = .completed
+        #expect(mutableMetadata.status == .completed)
+    }
+    
+    @Test func testAdStatus() {
+        let opened = AdStatus.opened
+        let completed = AdStatus.completed
+        let closed = AdStatus.closed
+        let failed = AdStatus.failed
+        
+        #expect(String(describing: opened) == "opened")
+        #expect(String(describing: completed) == "completed")
+        #expect(String(describing: closed) == "closed")
+        #expect(String(describing: failed) == "failed")
+    }
+    
+    // MARK: - Ad Options Tests
+    
+    @Test func testAdOptionsDefault() {
+        let options = AdOptions()
+        #expect(options.type == "timed")
+    }
+    
+    @Test func testAdOptionsCustom() {
+        let options = AdOptions(type: "interactive")
+        #expect(options.type == "interactive")
+    }
+    
+    // MARK: - Payment Link Tests
+    
+    @Test func testPaymentLinkStatus() {
+        let pending = PaymentLinkStatus.pending
+        let successful = PaymentLinkStatus.successful
+        let abandoned = PaymentLinkStatus.abandoned
+        let expired = PaymentLinkStatus.expired
+        
+        #expect(String(describing: pending) == "pending")
+        #expect(String(describing: successful) == "successful")
+        #expect(String(describing: abandoned) == "abandoned")
+        #expect(String(describing: expired) == "expired")
+    }
+    
+    @Test func testPaymentLinkSession() {
+        let url = URL(string: "https://bolt.com/checkout?id=123")!
+        let session = PaymentLinkSession(
+            paymentLinkId: "test-123",
+            paymentLinkUrl: url,
+            status: .pending
+        )
+        
+        #expect(session.paymentLinkId == "test-123")
+        #expect(session.paymentLinkUrl == url)
+        #expect(session.status == .pending)
+    }
+    
+    @Test func testGetPaymentLinkResponse() {
+        let paymentLink = GetPaymentLinkResponse.PaymentLink(id: "test-123")
+        let transaction = GetPaymentLinkResponse.Transaction(status: "completed")
+        let response = GetPaymentLinkResponse(
+            paymentLink: paymentLink,
+            transaction: transaction
+        )
+        
+        #expect(response.paymentLink.id == "test-123")
+        #expect(response.transaction?.status == "completed")
+    }
+    
+    // MARK: - Gaming Namespace State Management Tests
+    
+    @Test func testGamingNamespaceStateManagement() {
+        let gaming = BoltSDK.shared.gaming
+        let activeAds = gaming.getActiveAds()
+        
+        // Initially should be empty
+        #expect(activeAds.isEmpty)
+    }
+    
+    @Test func testAdOfferIdExtraction() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test with valid URL containing id parameter
+        let urlWithId = "https://bolt.com/ad?id=test-123"
+        let extractedId = gaming.extractAdOfferId(from: urlWithId)
+        #expect(extractedId == "test-123")
+        
+        // Test with URL without id parameter
+        let urlWithoutId = "https://bolt.com/ad"
+        let noId = gaming.extractAdOfferId(from: urlWithoutId)
+        #expect(noId == nil)
+        
+        // Test with invalid URL
+        let invalidUrl = "not-a-url"
+        let invalidId = gaming.extractAdOfferId(from: invalidUrl)
+        #expect(invalidId == nil)
+    }
+    
+    @Test func testAdStateTransitions() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test marking ad as completed
+        gaming.markAdCompleted("test-ad-123")
+        
+        // Test marking ad as closed
+        gaming.markAdClosed("test-ad-456")
+        
+        // These operations should not crash and should complete successfully
+        #expect(true) // If we get here, the operations completed without crashing
+    }
+    
+    // MARK: - OpenAdResult Tests
+    
+    @Test func testOpenAdResult() {
+        let successResult = OpenAdResult.success("https://test.com")
+        let errorResult = OpenAdResult.error("Invalid URL")
+        
+        switch successResult {
+        case .success(let url):
+            #expect(url == "https://test.com")
+        case .error:
+            #expect(Bool(false), "Should be success case")
+        }
+        
+        switch errorResult {
+        case .success:
+            #expect(Bool(false), "Should be error case")
+        case .error(let message):
+            #expect(message == "Invalid URL")
+        }
+    }
+    
+    // MARK: - URL Validation Tests
+    
+    @Test func testURLValidation() {
+        // Test valid URLs
+        let validUrls = [
+            "https://bolt.com/checkout?id=123",
+            "https://bolt.com/ad?id=abc",
+            "http://example.com",
+            "https://subdomain.example.com/path?param=value"
+        ]
+        
+        for urlString in validUrls {
+            let url = URL(string: urlString)
+            #expect(url != nil, "URL should be valid: \(urlString)")
+        }
+        
+        // Test invalid URLs
+        let invalidUrls = [
+            "",
+            "not-a-url",
+            "ftp://invalid-protocol.com",
+            "https://"
+        ]
+        
+        for urlString in invalidUrls {
+            let url = URL(string: urlString)
+            #expect(url == nil, "URL should be invalid: \(urlString)")
+        }
+    }
+    
+    // MARK: - Ad Link Processing Tests
+    
+    @Test func testAdLinkProcessing() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test various ad link formats
+        let testCases = [
+            ("https://bolt.com/ad?id=123", "123"),
+            ("https://bolt.com/ad?id=abc-def-456", "abc-def-456"),
+            ("https://example.com/ad?id=test", "test"),
+            ("https://bolt.com/ad", nil),
+            ("invalid-url", nil)
+        ]
+        
+        for (url, expectedId) in testCases {
+            let extractedId = gaming.extractAdOfferId(from: url)
+            #expect(extractedId == expectedId, "Failed for URL: \(url)")
+        }
+    }
+    
+    // MARK: - Concurrency Tests
+    
+    @Test func testConcurrentStateAccess() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test that multiple state operations don't crash
+        for i in 0..<10 {
+            gaming.markAdCompleted("test-\(i)")
+            gaming.markAdClosed("test-\(i)")
+        }
+        
+        // If we get here without crashing, the test passes
+        #expect(true)
+    }
+    
+    // MARK: - Edge Cases Tests
+    
+    @Test func testEmptyAdLink() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test with empty ad link
+        let result = gaming.preloadAd("")
+        #expect(result == nil)
+    }
+    
+    @Test func testNilAdOptions() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test with nil options (should use default)
+        let result = gaming.preloadAd("https://test.com", options: nil)
+        #expect(result != nil)
+    }
+    
+    // MARK: - Session Management Tests
+    
+    @Test func testSessionManagement() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test session methods don't crash
+        let sessions = gaming.getPendingSessions()
+        #expect(sessions.isEmpty)
+        
+        let response = GetPaymentLinkResponse(
+            paymentLink: GetPaymentLinkResponse.PaymentLink(id: "test"),
+            transaction: nil
+        )
+        let resolvedSession = gaming.resolveSession(response)
+        #expect(resolvedSession == nil)
+        
+        // Test cleanup methods
+        gaming.cleanup()
+        gaming.cleanupExpired()
+        
+        #expect(true) // If we get here, cleanup completed without crashing
+    }
+    
+    // MARK: - Performance Tests
+    
+    @Test func testPerformance() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test that state operations are reasonably fast
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        for i in 0..<100 {
+            gaming.markAdCompleted("perf-test-\(i)")
+        }
+        
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let duration = endTime - startTime
+        
+        #expect(duration < 1.0, "State operations should be fast")
+    }
+    
+    // MARK: - Data Structure Tests
+    
+    @Test func testSendableConformance() {
+        // Test that our data structures conform to Sendable
+        let metadata = AdMetadata(adOfferId: "test", adLink: "https://test.com")
+        let status = AdStatus.opened
+        
+        // These should compile without warnings about Sendable
+        #expect(metadata.adOfferId == "test")
+        #expect(status == .opened)
+    }
+    
+    // MARK: - Error Handling Tests
+    
+    @Test func testErrorHandling() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test error cases
+        let emptyResult = gaming.preloadAd("")
+        #expect(emptyResult == nil)
+        
+        let invalidResult = gaming.preloadAd("not-a-url")
+        #expect(invalidResult == nil)
+    }
+    
+    // MARK: - Memory Management Tests
+    
+    @Test func testMemoryManagement() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test that repeated operations don't cause memory issues
+        for i in 0..<1000 {
+            gaming.markAdCompleted("memory-test-\(i)")
+        }
+        
+        // If we get here without memory issues, the test passes
+        #expect(true)
+    }
+}

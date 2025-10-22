@@ -1,0 +1,12 @@
+// standard for swift projects
+.DS_Store
+.build
+.swiftpm
+.xcode
+.idea
+.vscode
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
