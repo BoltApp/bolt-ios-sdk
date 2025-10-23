@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "BoltSDK",
-    platforms: [.iOS(.v12)],
+    platforms: [.iOS(.v16)],
     products: [
         .library(name: "BoltSDK", targets: ["BoltSDK"]),
     ],
