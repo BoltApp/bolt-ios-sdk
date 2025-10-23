@@ -49,7 +49,12 @@ public struct GetPaymentLinkResponse: Sendable {
 // MARK: - Ad Models
 public struct AdOptions: Sendable {
     public var type: String
-    public init(type: String = "timed") { self.type = type }
+    public var useSafariViewController: Bool
+
+    public init(type: String = "timed", useSafariViewController: Bool = false) {
+        self.type = type
+        self.useSafariViewController = useSafariViewController
+    }
 }
 
 public enum AdError: Error, Sendable {
@@ -125,14 +130,17 @@ public class GamingNamespace: @unchecked Sendable {
 
         queue.async(flags: .barrier) { self.activeAds[adOfferId] = metadata }
 
-        if let safariAd = SafariAd(url: adLink, adOfferId: adOfferId, options: options) {
-            safariAd.completion = completion
-            safariAd.show(in: vc)
-        } else if let webAd = WebviewAd(url: adLink, options: options) {
+        if (options?.useSafariViewController ?? false) {
+            if let safariAd = SafariAd(url: adLink, adOfferId: adOfferId, options: options) {
+                safariAd.completion = completion
+                safariAd.show(in: vc)
+            } else {
+                completion(.failure(.presentationFailed))
+            }
+        } else {
+            let webAd = WebviewAd(url: adLink, options: options)
             webAd.completion = completion
             webAd.show(in: vc)
-        } else {
-            completion(.failure(.presentationFailed))
         }
     }
     #else
@@ -187,7 +195,7 @@ public protocol PreloadedAd {
 }
 
 @MainActor
-private class SafariAd: NSObject, @preconcurrency PreloadedAd, @preconcurrency SFSafariViewControllerDelegate {
+private class SafariAd: NSObject, PreloadedAd, SFSafariViewControllerDelegate {
     private let url: String
     private let adOfferId: String
     private let options: AdOptions?
@@ -222,15 +230,14 @@ private class SafariAd: NSObject, @preconcurrency PreloadedAd, @preconcurrency S
 }
 
 @MainActor
-private class WebviewAd: NSObject, @preconcurrency PreloadedAd, @preconcurrency WKNavigationDelegate, @preconcurrency WKScriptMessageHandler {
+private class WebviewAd: NSObject, PreloadedAd, WKNavigationDelegate, WKScriptMessageHandler {
     private let url: String
     private let options: AdOptions?
     private weak var presentedViewController: UIViewController?
     private var webView: WKWebView?
     var completion: ((OpenAdResult) -> Void)?
 
-    init?(url: String, options: AdOptions?) {
-        guard URL(string: url) != nil else { return nil }
+    init(url: String, options: AdOptions?) {
         self.url = url
         self.options = options
         super.init()
@@ -294,3 +301,4 @@ private class WebviewAd: NSObject, @preconcurrency PreloadedAd, @preconcurrency 
     }
 }
 #endif
+
