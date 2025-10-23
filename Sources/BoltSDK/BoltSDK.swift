@@ -49,7 +49,12 @@ public struct GetPaymentLinkResponse: Sendable {
 // MARK: - Ad Models
 public struct AdOptions: Sendable {
     public var type: String
-    public init(type: String = "timed") { self.type = type }
+    public var useSafariViewController: Bool
+
+    public init(type: String = "timed", useSafariViewController: Bool = false) {
+        self.type = type
+        self.useSafariViewController = useSafariViewController
+    }
 }
 
 public enum AdError: Error, Sendable {
@@ -125,14 +130,17 @@ public class GamingNamespace: @unchecked Sendable {
 
         queue.async(flags: .barrier) { self.activeAds[adOfferId] = metadata }
 
-        if let safariAd = SafariAd(url: adLink, adOfferId: adOfferId, options: options) {
-            safariAd.completion = completion
-            safariAd.show(in: vc)
-        } else if let webAd = WebviewAd(url: adLink, options: options) {
+        if (options?.useSafariViewController ?? false) {
+            if let safariAd = SafariAd(url: adLink, adOfferId: adOfferId, options: options) {
+                safariAd.completion = completion
+                safariAd.show(in: vc)
+            } else {
+                completion(.failure(.presentationFailed))
+            }
+        } else {
+            let webAd = WebviewAd(url: adLink, options: options)
             webAd.completion = completion
             webAd.show(in: vc)
-        } else {
-            completion(.failure(.presentationFailed))
         }
     }
     #else
@@ -294,3 +302,4 @@ private class WebviewAd: NSObject, @preconcurrency PreloadedAd, @preconcurrency 
     }
 }
 #endif
+
