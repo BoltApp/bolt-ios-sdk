@@ -187,7 +187,7 @@ public protocol PreloadedAd {
 }
 
 @MainActor
-private class SafariAd: NSObject, PreloadedAd, SFSafariViewControllerDelegate {
+private class SafariAd: NSObject, @preconcurrency PreloadedAd, @preconcurrency SFSafariViewControllerDelegate {
     private let url: String
     private let adOfferId: String
     private let options: AdOptions?
@@ -222,14 +222,15 @@ private class SafariAd: NSObject, PreloadedAd, SFSafariViewControllerDelegate {
 }
 
 @MainActor
-private class WebviewAd: NSObject, PreloadedAd, WKNavigationDelegate, WKScriptMessageHandler {
+private class WebviewAd: NSObject, @preconcurrency PreloadedAd, @preconcurrency WKNavigationDelegate, @preconcurrency WKScriptMessageHandler {
     private let url: String
     private let options: AdOptions?
     private weak var presentedViewController: UIViewController?
     private var webView: WKWebView?
     var completion: ((OpenAdResult) -> Void)?
 
-    init(url: String, options: AdOptions?) {
+    init?(url: String, options: AdOptions?) {
+        guard URL(string: url) != nil else { return nil }
         self.url = url
         self.options = options
         super.init()
