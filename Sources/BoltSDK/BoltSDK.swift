@@ -225,8 +225,10 @@ private class SafariAd: NSObject, PreloadedAd, SFSafariViewControllerDelegate {
     }
 
     nonisolated func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+        Task { @MainActor in
         BoltSDK.shared.gaming.markAdClosed(adOfferId)
         completion?(.failure(.presentationFailed))
+        }
     }
 }
 
