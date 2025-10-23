@@ -94,6 +94,21 @@ You will need to bring your own backend server to complete integration.
 - [**Quick Start**](https://bolt-gaming-docs.vercel.app/guide/checkout-quickstart.html): View our quickstart guide to get the API running
 - [**Example Server**](https://github.com/BoltApp/bolt-gameserver-sample): We also have a sample server in NodeJS for your reference during implementation
 
+### Step 4: Example Usage
+```
+// Example usage
+let boltSDK = BoltSDK.shared
+boltSDK.gaming.openCheckout("https://bolt.com/checkout?id=123")
+
+boltSDK.gaming.openAd("https://bolt.com/ad?id=abc", in: self) { result in
+    switch result {
+    case .success(let link):
+        print("Ad opened: \(link)")
+    case .error(let message):
+        print("Error: \(message)")
+    }
+}
+```
 
 
 ## Need help?
