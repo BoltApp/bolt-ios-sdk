@@ -190,6 +190,7 @@ public class GamingNamespace: @unchecked Sendable {
 
 // MARK: - iOS-only Implementations
 #if canImport(UIKit)
+@MainActor
 public protocol PreloadedAd {
     func show(in viewController: UIViewController)
 }
