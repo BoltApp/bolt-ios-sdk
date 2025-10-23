@@ -117,7 +117,7 @@ public class GamingNamespace: @unchecked Sendable {
     public func openAd(
         _ adLink: String,
         options: AdOptions? = nil,
-        in vc: UIViewController,
+        in viewController: UIViewController? = nil,
         completion: @escaping (OpenAdResult) -> Void
     ) {
         guard let url = URL(string: adLink), !adLink.isEmpty else {
@@ -130,25 +130,50 @@ public class GamingNamespace: @unchecked Sendable {
 
         queue.async(flags: .barrier) { self.activeAds[adOfferId] = metadata }
 
+        // Find the appropriate view controller
+        let presentingVC = viewController ?? findRootViewController()
+
         if (options?.useSafariViewController ?? false) {
             if let safariAd = SafariAd(url: adLink, adOfferId: adOfferId, options: options) {
                 safariAd.completion = completion
-                safariAd.show(in: vc)
+                safariAd.show(in: presentingVC)
             } else {
                 completion(.failure(.presentationFailed))
             }
         } else {
             let webAd = WebviewAd(url: adLink, options: options)
             webAd.completion = completion
-            webAd.show(in: vc)
+            webAd.show(in: presentingVC)
         }
+    }
+
+    // MARK: - Convenience Methods
+    @MainActor
+    public func openAd(_ adLink: String, completion: @escaping (OpenAdResult) -> Void) {
+        openAd(adLink, options: nil, in: nil, completion: completion)
+    }
+
+    @MainActor
+    private func findRootViewController() -> UIViewController {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            // Fallback: create a basic view controller
+            return UIViewController()
+        }
+        
+        var rootVC = window.rootViewController
+        while let presentedVC = rootVC?.presentedViewController {
+            rootVC = presentedVC
+        }
+        
+        return rootVC ?? UIViewController()
     }
     #else
     public func preloadAd(_ adLink: String, options: AdOptions? = nil) -> Any? {
         print("preloadAd is only available on iOS.")
         return nil
     }
-    public func openAd(_ adLink: String, options: AdOptions? = nil, in _: Any?, completion: @escaping (OpenAdResult) -> Void) {
+    public func openAd(_ adLink: String, options: AdOptions? = nil, in _: Any? = nil, completion: @escaping (OpenAdResult) -> Void) {
         completion(.failure(.presentationFailed))
     }
     #endif
