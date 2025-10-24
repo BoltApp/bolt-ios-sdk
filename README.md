@@ -79,13 +79,49 @@ You need 3 things to get started:
 
 ### Step 1: Install the IOS SDK
 
-TODO
+Add the Bolt iOS SDK to your project using Swift Package Manager:
 
-### Step 2: Add code to your game
+1. In Xcode, go to **File** → **Add Package Dependencies**
+2. Enter the repository URL: `https://github.com/BoltApp/bolt-ios-sdk`
+3. Click **Add Package**
+4. Select **BoltSDK** and click **Add Package**
 
-There is a sample integration in the `examples/` folder.
+Alternatively, you can add it directly to your `Package.swift`:
 
-TODO
+```swift
+dependencies: [
+    .package(url: "https://github.com/BoltApp/bolt-ios-sdk", from: "1.0.0")
+]
+```
+
+### Step 2: Add code to your app
+
+Import the SDK in your Swift files:
+
+```swift
+import BoltSDK
+```
+
+Then use the SDK in your app:
+
+```swift
+// Links in this sample are examples. You will need to follow our quickstart guide on how to fetch URLs from the API.
+
+// For checkout functionality
+boltSDK.gaming.openCheckout("https://bolt.com/checkout?id=123")
+
+// For ad functionality
+boltSDK.gaming.openAd("https://bolt.com/ad?id=abc", in: self) { result in
+    switch result {
+    case .success(let link):
+        print("Ad opened: \(link)")
+    case .failure(let error):
+        print("Error: \(error)")
+    }
+}
+```
+
+For SwiftUI integration, see the examples in Step 4 below.
 
 ### Step 3: Continue with Backend Integration
 
@@ -95,17 +131,93 @@ You will need to bring your own backend server to complete integration.
 - [**Example Server**](https://github.com/BoltApp/bolt-gameserver-sample): We also have a sample server in NodeJS for your reference during implementation
 
 ### Step 4: Example Usage
-```
-// Example usage
-let boltSDK = BoltSDK.shared
+
+#### UIKit Integration
+```swift
+// Example usage. For real URLs you will need to use our api. See our quickstart above.
 boltSDK.gaming.openCheckout("https://bolt.com/checkout?id=123")
 
 boltSDK.gaming.openAd("https://bolt.com/ad?id=abc", in: self) { result in
     switch result {
     case .success(let link):
         print("Ad opened: \(link)")
-    case .error(let message):
-        print("Error: \(message)")
+    case .failure(let error):
+        print("Error: \(error)")
+    }
+}
+```
+
+#### SwiftUI Integration
+
+For SwiftUI apps, use our helper components for a simple:
+
+```swift
+import SwiftUI
+import BoltSDK
+
+struct ContentView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Bolt SDK Demo")
+                .font(.title)
+            
+            // Simple checkout button for testing
+            // Replace button with your own and grab link from the API
+            BoltCheckoutButton(
+                checkoutLink: "https://bolt.com/checkout?id=123",
+                buttonTitle: "Buy Now"
+            )
+            
+            // Simple ad button for testing
+            // Replace button with your own and grab link from the API
+            BoltAdButton(
+                adLink: "https://bolt.com/ad?id=123",
+                buttonTitle: "Watch Ad"
+            ) { result in
+                switch result {
+                case .success(let link):
+                    print("Ad completed: \(link)")
+                case .failure(let error):
+                    print("Ad failed: \(error)")
+                }
+            }
+        }
+        .padding()
+    }
+}
+```
+
+#### Manual SwiftUI Integration
+
+If you need more control, you can manually integrate with the helper:
+
+```swift
+import SwiftUI
+import BoltSDK
+import UIKit
+
+struct ContentView: View {
+    @State private var viewController: UIViewController?
+
+    var body: some View {
+        VStack {
+            Image(systemName: "globe")
+                .imageScale(.large)
+                .foregroundStyle(.tint)
+            Text("Hello, world!")
+            Button("Press me") {
+                guard let viewController else { return }
+                boltSDK.gaming.openAd("https://sandbox.gcom.toffeepay.com/love.com/offer_01k5y8wdbk5b390mmwdz5ja7cd", in: viewController) { result in
+                    print("Webview closed")
+                }
+            }
+        }
+        .padding()
+        .background(
+            BoltViewControllerProvider { vc in
+                viewController = vc
+            }
+        )
     }
 }
 ```

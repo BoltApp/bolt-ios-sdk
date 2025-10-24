@@ -20,6 +20,10 @@ public class BoltSDK: Sendable {
     private init() {}
 }
 
+// MARK: - Global SDK Instance
+@MainActor
+public let boltSDK = BoltSDK.shared
+
 // MARK: - Payment Models
 public enum PaymentLinkStatus: Sendable {
     case pending, successful, abandoned, expired
@@ -251,7 +255,7 @@ private class SafariAd: NSObject, PreloadedAd, SFSafariViewControllerDelegate {
 
     nonisolated func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
         Task { @MainActor in
-        BoltSDK.shared.gaming.markAdClosed(adOfferId)
+        boltSDK.gaming.markAdClosed(adOfferId)
         completion?(.failure(.presentationFailed))
         }
     }
