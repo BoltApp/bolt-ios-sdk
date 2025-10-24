@@ -20,6 +20,10 @@ public class BoltSDK: Sendable {
     private init() {}
 }
 
+// MARK: - Global SDK Instance
+@MainActor
+public let boltSDK = BoltSDK.shared
+
 // MARK: - Payment Models
 public enum PaymentLinkStatus: Sendable {
     case pending, successful, abandoned, expired
@@ -40,9 +44,20 @@ public struct PaymentLinkSession: Sendable {
 public struct GetPaymentLinkResponse: Sendable {
     public let paymentLink: PaymentLink
     public let transaction: Transaction?
+    
+    public init(paymentLink: PaymentLink, transaction: Transaction?) {
+        self.paymentLink = paymentLink
+        self.transaction = transaction
+    }
 
-    public struct PaymentLink: Sendable { public let id: String }
-    public struct Transaction: Sendable { public let status: String }
+    public struct PaymentLink: Sendable { 
+        public let id: String
+        public init(id: String) { self.id = id }
+    }
+    public struct Transaction: Sendable { 
+        public let status: String
+        public init(status: String) { self.status = status }
+    }
 }
 
 
@@ -89,13 +104,26 @@ public struct AdMetadata: Sendable, Codable {
 public class GamingNamespace: @unchecked Sendable {
     private var activeAds: [String: AdMetadata] = [:]
     private let queue = DispatchQueue(label: "com.bolt.gaming", attributes: .concurrent)
+    
+    // MARK: - URL Validation Helper
+    private func isValidURL(_ urlString: String) -> Bool {
+        guard !urlString.isEmpty,
+              let url = URL(string: urlString),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              url.host != nil,
+              !url.host!.isEmpty else {
+            return false
+        }
+        return true
+    }
 
     // MARK: - Checkout (only works on iOS)
     #if canImport(UIKit)
     @MainActor
     public func openCheckout(_ checkoutLink: String) {
-        guard let url = URL(string: checkoutLink),
-              ["https"].contains(url.scheme?.lowercased() ?? "") else { return }
+        guard isValidURL(checkoutLink),
+              let url = URL(string: checkoutLink) else { return }
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
     #else
@@ -109,7 +137,7 @@ public class GamingNamespace: @unchecked Sendable {
     #if canImport(UIKit)
     @MainActor
     public func preloadAd(_ adLink: String, options: AdOptions? = nil) -> PreloadedAd? {
-        guard !adLink.isEmpty else { return nil }
+        guard isValidURL(adLink) else { return nil }
         return WebviewAd(url: adLink, options: options)
     }
 
@@ -120,7 +148,7 @@ public class GamingNamespace: @unchecked Sendable {
         in viewController: UIViewController? = nil,
         completion: @escaping (OpenAdResult) -> Void
     ) {
-        guard let url = URL(string: adLink), !adLink.isEmpty else {
+        guard isValidURL(adLink) else {
             completion(.failure(.invalidURL))
             return
         }
@@ -251,7 +279,7 @@ private class SafariAd: NSObject, PreloadedAd, SFSafariViewControllerDelegate {
 
     nonisolated func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
         Task { @MainActor in
-        BoltSDK.shared.gaming.markAdClosed(adOfferId)
+        boltSDK.gaming.markAdClosed(adOfferId)
         completion?(.failure(.presentationFailed))
         }
     }
