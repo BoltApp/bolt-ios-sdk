@@ -42,62 +42,140 @@ public struct BoltViewControllerProvider: UIViewControllerRepresentable {
         // No updates needed - the helper manages its own lifecycle
     }
 }
-#endif
 
-#if canImport(UIKit)
 /// A simplified SwiftUI view for easy Bolt SDK integration
 @available(iOS 13.0, macOS 10.15, *)
 public struct BoltAdButton: View {
     let adLink: String
     let buttonTitle: String
     let onResult: (OpenAdResult) -> Void
+    let buttonStyle: BoltButtonStyle
+    let isLoading: Bool
     
     @State private var viewController: UIViewController?
+    @State private var isPresenting: Bool = false
     
     public init(
         adLink: String,
         buttonTitle: String = "Open Ad",
+        buttonStyle: BoltButtonStyle = .default,
+        isLoading: Bool = false,
         onResult: @escaping (OpenAdResult) -> Void = { _ in }
     ) {
         self.adLink = adLink
         self.buttonTitle = buttonTitle
+        self.buttonStyle = buttonStyle
+        self.isLoading = isLoading
         self.onResult = onResult
     }
     
     public var body: some View {
-        Button(buttonTitle) {
-            guard let viewController = viewController else { return }
-            boltSDK.gaming.openAd(adLink, in: viewController, completion: onResult)
-        }
-        .disabled(viewController == nil)
-        .background(
-            BoltViewControllerProvider { vc in
-                viewController = vc
+        buttonStyle.apply(to:
+            Button(action: {
+                guard let viewController = viewController, !isPresenting else { return }
+                isPresenting = true
+                boltSDK.gaming.openAd(adLink, in: viewController) { result in
+                    isPresenting = false
+                    onResult(result)
+                }
+            }) {
+                HStack {
+                    if isLoading || isPresenting {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                    Text(buttonTitle)
+                }
             }
+            .disabled(viewController == nil || isLoading || isPresenting)
+            .accessibilityLabel("Open advertisement")
+            .accessibilityHint("Tap to open the advertisement")
+            .background(
+                BoltViewControllerProvider { vc in
+                    viewController = vc
+                }
+            )
         )
     }
 }
-#endif
 
-#if canImport(UIKit)
 /// A simplified SwiftUI view for Bolt checkout integration
 @available(iOS 13.0, macOS 10.15, *)
 public struct BoltCheckoutButton: View {
     let checkoutLink: String
     let buttonTitle: String
+    let buttonStyle: BoltButtonStyle
+    let isLoading: Bool
+    
+    @State private var isPresenting: Bool = false
     
     public init(
         checkoutLink: String,
-        buttonTitle: String = "Open Checkout"
+        buttonTitle: String = "Open Checkout",
+        buttonStyle: BoltButtonStyle = .default,
+        isLoading: Bool = false
     ) {
         self.checkoutLink = checkoutLink
         self.buttonTitle = buttonTitle
+        self.buttonStyle = buttonStyle
+        self.isLoading = isLoading
     }
     
     public var body: some View {
-        Button(buttonTitle) {
-            boltSDK.gaming.openCheckout(checkoutLink)
+        buttonStyle.apply(to:
+            Button(action: {
+                guard !isPresenting else { return }
+                isPresenting = true
+                boltSDK.gaming.openCheckout(checkoutLink)
+                // Reset presenting state after a short delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isPresenting = false
+                }
+            }) {
+                HStack {
+                    if isLoading || isPresenting {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                    Text(buttonTitle)
+                }
+            }
+            .disabled(isLoading || isPresenting)
+            .accessibilityLabel("Open checkout")
+            .accessibilityHint("Tap to open the payment checkout")
+        )
+    }
+}
+
+/// Custom button styles for Bolt SDK components
+@available(iOS 13.0, macOS 10.15, *)
+public enum BoltButtonStyle {
+    case `default`
+    case primary
+    case secondary
+    
+    public func apply(to button: some View) -> AnyView {
+        switch self {
+        case .default:
+            return AnyView(button)
+        case .primary:
+            return AnyView(
+                button
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(8)
+            )
+        case .secondary:
+            return AnyView(
+                button
+                    .foregroundColor(.blue)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+            )
         }
     }
 }
 #endif
+

@@ -15,8 +15,9 @@ struct CoreFunctionalityTests {
         #expect(String(describing: status) == "pending")
     }
     
-    @Test func testSDKInitialization() {
+    @Test @MainActor func testSDKInitialization() {
         let sdk = BoltSDK.shared
+        // Verify SDK is properly initialized
         #expect(sdk.gaming != nil)
     }
     
@@ -111,7 +112,7 @@ struct CoreFunctionalityTests {
     
     // MARK: - Gaming Namespace State Management Tests
     
-    @Test func testGamingNamespaceStateManagement() {
+    @Test @MainActor func testGamingNamespaceStateManagement() {
         let gaming = BoltSDK.shared.gaming
         let activeAds = gaming.getActiveAds()
         
@@ -119,7 +120,7 @@ struct CoreFunctionalityTests {
         #expect(activeAds.isEmpty)
     }
     
-    @Test func testAdOfferIdExtraction() {
+    @Test @MainActor func testAdOfferIdExtraction() {
         let gaming = BoltSDK.shared.gaming
         
         // Test with valid URL containing id parameter
@@ -138,7 +139,7 @@ struct CoreFunctionalityTests {
         #expect(invalidId == nil)
     }
     
-    @Test func testAdStateTransitions() {
+    @Test @MainActor func testAdStateTransitions() {
         let gaming = BoltSDK.shared.gaming
         
         // Test marking ad as completed
@@ -148,7 +149,7 @@ struct CoreFunctionalityTests {
         gaming.markAdClosed("test-ad-456")
         
         // These operations should not crash and should complete successfully
-        #expect(true) // If we get here, the operations completed without crashing
+        #expect(Bool(true)) // If we get here, the operations completed without crashing
     }
     
     // MARK: - OpenAdResult Tests
@@ -182,8 +183,10 @@ struct CoreFunctionalityTests {
     
     // MARK: - URL Validation Tests
     
-    @Test func testURLValidation() {
-        // Test valid URLs
+    @Test @MainActor func testURLValidation() {
+        let gaming = BoltSDK.shared.gaming
+        
+        // Test valid URLs through SDK validation
         let validUrls = [
             "https://bolt.com/checkout?id=123",
             "https://bolt.com/ad?id=abc",
@@ -192,11 +195,16 @@ struct CoreFunctionalityTests {
         ]
         
         for urlString in validUrls {
-            let url = URL(string: urlString)
-            #expect(url != nil, "URL should be valid: \(urlString)")
+            let result = gaming.preloadAd(urlString)
+            #if canImport(UIKit)
+            #expect(result != nil, "URL should be valid: \(urlString)")
+            #else
+            // On non-iOS platforms, preloadAd returns nil
+            #expect(result == nil, "preloadAd not available on this platform")
+            #endif
         }
         
-        // Test invalid URLs
+        // Test invalid URLs through SDK validation
         let invalidUrls = [
             "",
             "not-a-url",
@@ -205,14 +213,14 @@ struct CoreFunctionalityTests {
         ]
         
         for urlString in invalidUrls {
-            let url = URL(string: urlString)
-            #expect(url == nil, "URL should be invalid: \(urlString)")
+            let result = gaming.preloadAd(urlString)
+            #expect(result == nil, "URL should be invalid: \(urlString)")
         }
     }
     
     // MARK: - Ad Link Processing Tests
     
-    @Test func testAdLinkProcessing() {
+    @Test @MainActor func testAdLinkProcessing() {
         let gaming = BoltSDK.shared.gaming
         
         // Test various ad link formats
@@ -232,7 +240,7 @@ struct CoreFunctionalityTests {
     
     // MARK: - Concurrency Tests
     
-    @Test func testConcurrentStateAccess() {
+    @Test @MainActor func testConcurrentStateAccess() {
         let gaming = BoltSDK.shared.gaming
         
         // Test that multiple state operations don't crash
@@ -242,12 +250,12 @@ struct CoreFunctionalityTests {
         }
         
         // If we get here without crashing, the test passes
-        #expect(true)
+        #expect(Bool(true))
     }
     
     // MARK: - Edge Cases Tests
     
-    @Test func testEmptyAdLink() {
+    @Test @MainActor func testEmptyAdLink() {
         let gaming = BoltSDK.shared.gaming
         
         // Test with empty ad link
@@ -255,17 +263,22 @@ struct CoreFunctionalityTests {
         #expect(result == nil)
     }
     
-    @Test func testNilAdOptions() {
+    @Test @MainActor func testNilAdOptions() {
         let gaming = BoltSDK.shared.gaming
         
         // Test with nil options (should use default)
         let result = gaming.preloadAd("https://test.com", options: nil)
+        #if canImport(UIKit)
         #expect(result != nil)
+        #else
+        // On non-iOS platforms, preloadAd returns nil
+        #expect(result == nil)
+        #endif
     }
     
     // MARK: - Session Management Tests
     
-    @Test func testSessionManagement() {
+    @Test @MainActor func testSessionManagement() {
         let gaming = BoltSDK.shared.gaming
         
         // Test session methods don't crash
@@ -283,12 +296,12 @@ struct CoreFunctionalityTests {
         gaming.cleanup()
         gaming.cleanupExpired()
         
-        #expect(true) // If we get here, cleanup completed without crashing
+        #expect(Bool(true)) // If we get here, cleanup completed without crashing
     }
     
     // MARK: - Performance Tests
     
-    @Test func testPerformance() {
+    @Test @MainActor func testPerformance() {
         let gaming = BoltSDK.shared.gaming
         
         // Test that state operations are reasonably fast
@@ -349,7 +362,7 @@ struct CoreFunctionalityTests {
     
     // MARK: - Error Handling Tests
     
-    @Test func testErrorHandling() {
+    @Test @MainActor func testErrorHandling() {
         let gaming = BoltSDK.shared.gaming
         
         // Test error cases
@@ -362,7 +375,7 @@ struct CoreFunctionalityTests {
     
     // MARK: - Memory Management Tests
     
-    @Test func testMemoryManagement() {
+    @Test @MainActor func testMemoryManagement() {
         let gaming = BoltSDK.shared.gaming
         
         // Test that repeated operations don't cause memory issues
@@ -371,6 +384,6 @@ struct CoreFunctionalityTests {
         }
         
         // If we get here without memory issues, the test passes
-        #expect(true)
+        #expect(Bool(true))
     }
 }

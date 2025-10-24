@@ -33,7 +33,7 @@ struct BoltSDKTests {
         #expect(String(describing: failed) == "failed")
     }
     
-    @Test func testGamingNamespaceStateManagement() {
+    @Test @MainActor func testGamingNamespaceStateManagement() {
         let gaming = BoltSDK.shared.gaming
         let activeAds = gaming.getActiveAds()
         
